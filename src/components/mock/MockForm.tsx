@@ -61,8 +61,20 @@ export function MockForm({ existingMock }: MockFormProps) {
   const navigate = useNavigate();
 
   // --- Form state ---
-  const defaultExam = existingMock?.exam ?? selectedExam ?? '';
-  const defaultSeries = existingMock?.testSeries ?? selectedTestSeries ?? '';
+  const getAvailableSeriesForExam = (examName: string): string[] => {
+    if (!examName) return [];
+    const predefined = PREDEFINED_TEST_SERIES[examName] ?? [];
+    const custom = settings.customTestSeries[examName] ?? [];
+    return [...predefined, ...custom.filter((s) => !predefined.includes(s))];
+  };
+
+  const defaultExam = existingMock?.exam || selectedExam || PREDEFINED_EXAMS[0].name;
+  const initialAvailableSeries = getAvailableSeriesForExam(defaultExam);
+  const defaultSeries =
+    existingMock?.testSeries ||
+    (selectedTestSeries && initialAvailableSeries.includes(selectedTestSeries) ? selectedTestSeries : '') ||
+    initialAvailableSeries[0] ||
+    '';
 
   const [exam, setExam] = useState(defaultExam);
   const [customExamInput, setCustomExamInput] = useState('');
@@ -118,23 +130,32 @@ export function MockForm({ existingMock }: MockFormProps) {
     const custom = settings.customExams
       .filter((e) => !PREDEFINED_EXAMS.map((p) => p.name).includes(e))
       .map((e) => ({ value: e, label: e }));
+    const allExams = [...predefined, ...custom];
+    const showPlaceholder = !exam && !showCustomExam;
     return [
-      ...predefined,
-      ...custom,
+      ...(showPlaceholder ? [{ value: '', label: '-- Select Exam --' }] : []),
+      ...allExams,
       { value: '__custom__', label: '+ Add Custom Exam' },
     ];
-  }, [settings.customExams]);
+  }, [settings.customExams, exam, showCustomExam]);
 
   const seriesOptions = useMemo(() => {
-    if (!exam) return [{ value: '__custom__', label: '+ Add Custom Series' }];
-    const predefined = PREDEFINED_TEST_SERIES[exam] ?? [];
-    const custom = settings.customTestSeries[exam] ?? [];
-    const all = [...predefined, ...custom.filter((s) => !predefined.includes(s))];
+    const currentExam = showCustomExam ? customExamInput.trim() : exam;
+    if (!currentExam) {
+      return [
+        { value: '', label: '-- Select Test Series --' },
+        { value: '__custom__', label: '+ Add Custom Series' },
+      ];
+    }
+    const all = getAvailableSeriesForExam(currentExam);
+    const opts = all.map((s) => ({ value: s, label: s }));
+    const showPlaceholder = !testSeries && !showCustomSeries;
     return [
-      ...all.map((s) => ({ value: s, label: s })),
+      ...(showPlaceholder ? [{ value: '', label: '-- Select Test Series --' }] : []),
+      ...opts,
       { value: '__custom__', label: '+ Add Custom Series' },
     ];
-  }, [exam, settings.customTestSeries]);
+  }, [exam, showCustomExam, customExamInput, testSeries, showCustomSeries, settings.customTestSeries]);
 
   // Mock number
   const mockNumber = useMemo(() => {
@@ -180,16 +201,24 @@ export function MockForm({ existingMock }: MockFormProps) {
   const handleExamChange = (val: string) => {
     if (val === '__custom__') {
       setShowCustomExam(true);
+      setExam('');
+      setTestSeries('');
     } else {
       setExam(val);
-      setTestSeries('');
       setShowCustomExam(false);
+      const available = getAvailableSeriesForExam(val);
+      if (testSeries && available.includes(testSeries)) {
+        // Keep current test series if available for the new exam
+      } else {
+        setTestSeries(available[0] ?? '');
+      }
     }
   };
 
   const handleSeriesChange = (val: string) => {
     if (val === '__custom__') {
       setShowCustomSeries(true);
+      setTestSeries('');
     } else {
       setTestSeries(val);
       setShowCustomSeries(false);
@@ -238,6 +267,20 @@ export function MockForm({ existingMock }: MockFormProps) {
 
     if (validationErrors.length > 0) {
       setErrors(validationErrors.map((e) => e.message));
+      const firstField = validationErrors[0].field;
+      let targetId = '';
+      if (firstField === 'exam') {
+        targetId = showCustomExam ? 'form-custom-exam' : 'form-exam';
+      } else if (firstField === 'testSeries') {
+        targetId = showCustomSeries ? 'form-custom-series' : 'form-series';
+      } else {
+        targetId = firstField.replace('.', '-');
+      }
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
       return;
     }
 
