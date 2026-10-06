@@ -202,13 +202,14 @@ export default function ProgressPage() {
 
           {/* Section progress */}
           {SECTION_CONFIGS.map(({ key, label, color }) => {
-            if (!sorted[0]?.sections[key]) return null;
-            const firstSec = calculateSectionStats(sorted[0].sections[key]);
-            const latestSec = calculateSectionStats(sorted[sorted.length - 1].sections[key]);
+            const mocksWithSec = sorted.filter((m) => !!m.sections[key]);
+            if (mocksWithSec.length === 0) return null;
+            const firstSec = calculateSectionStats(mocksWithSec[0].sections[key]!);
+            const latestSec = calculateSectionStats(mocksWithSec[mocksWithSec.length - 1].sections[key]!);
             const scoreChange = calculateImprovement(firstSec.marks, latestSec.marks);
             const accChange = calculateImprovement(firstSec.accuracy, latestSec.accuracy);
             const arChange = calculateImprovement(firstSec.attemptRate, latestSec.attemptRate);
-            const bestSectionScore = Math.max(...sorted.map((m) => m.sections[key]?.marks ?? 0));
+            const bestSectionScore = Math.max(...mocksWithSec.map((m) => m.sections[key]?.marks ?? 0));
 
             return (
               <div key={key} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
@@ -220,7 +221,7 @@ export default function ProgressPage() {
                 <StatRow
                   label="Latest Score"
                   value={formatScore(latestSec.marks)}
-                  change={sorted.length >= 2 ? formatImprovement(scoreChange) : undefined}
+                  change={mocksWithSec.length >= 2 ? formatImprovement(scoreChange) : undefined}
                   isPositive={scoreChange >= 0}
                 />
                 <StatRow label="Best Score" value={formatScore(bestSectionScore)} />
@@ -228,14 +229,14 @@ export default function ProgressPage() {
                 <StatRow
                   label="Latest Accuracy"
                   value={formatPercent(latestSec.accuracy)}
-                  change={sorted.length >= 2 ? `${formatImprovement(accChange)} pp` : undefined}
+                  change={mocksWithSec.length >= 2 ? `${formatImprovement(accChange)} pp` : undefined}
                   isPositive={accChange >= 0}
                 />
                 <StatRow label="First Attempt Rate" value={formatPercent(firstSec.attemptRate)} />
                 <StatRow
                   label="Latest Attempt Rate"
                   value={formatPercent(latestSec.attemptRate)}
-                  change={sorted.length >= 2 ? `${formatImprovement(arChange)} pp` : undefined}
+                  change={mocksWithSec.length >= 2 ? `${formatImprovement(arChange)} pp` : undefined}
                   isPositive={arChange >= 0}
                 />
               </div>

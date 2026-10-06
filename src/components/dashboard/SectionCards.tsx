@@ -16,7 +16,7 @@ export function SectionCards() {
   const latestMock = sorted[sorted.length - 1];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {SECTION_CONFIGS.map(({ key, label, color }) => {
         const sec = latestMock.sections[key];
         if (!sec) return null;

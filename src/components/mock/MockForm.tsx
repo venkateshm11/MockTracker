@@ -3,8 +3,14 @@ import { Timestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { PREDEFINED_EXAMS, PREDEFINED_TEST_SERIES } from '../../constants/exams';
-import { SECTION_CONFIGS, DEFAULT_SECTION_DATA } from '../../constants/sections';
-import { MockWithId, MockSections, TestType } from '../../types/mock';
+import {
+  ALL_SECTION_CONFIGS,
+  DEFAULT_SECTION_DATA,
+  getSectionsForExamAndStage,
+  isRRBExam,
+  isSSCExam,
+} from '../../constants/sections';
+import { MockWithId, MockSections, TestType, ExamStage } from '../../types/mock';
 import {
   calculateMockNumber,
   calculateOverall,
@@ -66,6 +72,7 @@ export function MockForm({ existingMock }: MockFormProps) {
   const [customSeriesInput, setCustomSeriesInput] = useState('');
   const [showCustomSeries, setShowCustomSeries] = useState(false);
 
+  const [stage, setStage] = useState<ExamStage>(existingMock?.stage ?? 'prelims');
   const [testType, setTestType] = useState<TestType>(existingMock?.testType ?? 'full');
   const [date, setDate] = useState(() => {
     if (existingMock?.date) {
@@ -77,9 +84,14 @@ export function MockForm({ existingMock }: MockFormProps) {
     return format(new Date(), 'yyyy-MM-dd');
   });
 
+  const activeExamName = showCustomExam ? customExamInput.trim() : exam;
+  const activeSectionConfigs = useMemo(() => {
+    return getSectionsForExamAndStage(activeExamName, stage);
+  }, [activeExamName, stage]);
+
   const [sections, setSections] = useState<Record<string, SectionInput>>(() => {
     const result: Record<string, SectionInput> = {};
-    for (const { key } of SECTION_CONFIGS) {
+    for (const { key } of ALL_SECTION_CONFIGS) {
       if (existingMock?.sections[key]) {
         const s = existingMock.sections[key];
         result[key] = {
@@ -133,13 +145,9 @@ export function MockForm({ existingMock }: MockFormProps) {
 
   // Live summary
   const liveSummary = useMemo(() => {
-    const builtSections: MockSections = {
-      english: DEFAULT_SECTION_DATA,
-      numerical: DEFAULT_SECTION_DATA,
-      reasoning: DEFAULT_SECTION_DATA,
-    };
-    for (const { key } of SECTION_CONFIGS) {
-      const s = sections[key];
+    const builtSections: MockSections = {};
+    for (const { key } of activeSectionConfigs) {
+      const s = sections[key] || emptySectionInput();
       builtSections[key] = {
         questions: parseFloat(s.questions) || 0,
         attempted: parseFloat(s.attempted) || 0,
@@ -151,7 +159,7 @@ export function MockForm({ existingMock }: MockFormProps) {
       };
     }
     return calculateOverall(builtSections);
-  }, [sections]);
+  }, [sections, activeSectionConfigs]);
 
   const handleSectionChange = (key: string, field: keyof SectionInput, value: string) => {
     setSections((prev) => {
@@ -195,14 +203,10 @@ export function MockForm({ existingMock }: MockFormProps) {
     const finalSeries = showCustomSeries ? customSeriesInput.trim() : testSeries;
 
     // Build sections data
-    const builtSections: MockSections = {
-      english: DEFAULT_SECTION_DATA,
-      numerical: DEFAULT_SECTION_DATA,
-      reasoning: DEFAULT_SECTION_DATA,
-    };
+    const builtSections: MockSections = {};
     const sectionLabels: Record<string, string> = {};
-    for (const { key, label } of SECTION_CONFIGS) {
-      const s = sections[key];
+    for (const { key, label } of activeSectionConfigs) {
+      const s = sections[key] || emptySectionInput();
       builtSections[key] = {
         questions: parseFloat(s.questions) || 0,
         attempted: parseFloat(s.attempted) || 0,
@@ -253,6 +257,7 @@ export function MockForm({ existingMock }: MockFormProps) {
       const payload = {
         exam: finalExam,
         testSeries: finalSeries,
+        stage,
         testType,
         date: Timestamp.fromDate(dateObj),
         sections: builtSections,
@@ -331,6 +336,18 @@ export function MockForm({ existingMock }: MockFormProps) {
             )}
           </div>
 
+          {/* Exam Stage */}
+          <Select
+            id="form-stage"
+            label="Exam Stage"
+            value={stage}
+            onChange={(v) => setStage(v as ExamStage)}
+            options={[
+              { value: 'prelims', label: 'Prelims' },
+              { value: 'mains', label: 'Mains' },
+            ]}
+          />
+
           {/* Test Type */}
           <Select
             id="form-test-type"
@@ -370,8 +387,43 @@ export function MockForm({ existingMock }: MockFormProps) {
         )}
       </div>
 
-      {/* Section inputs */}
-      {SECTION_CONFIGS.map(({ key, label, color }) => (
+      {/* Section inputs header */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+              Sections ({activeSectionConfigs.length})
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {stage === 'mains'
+                ? isRRBExam(activeExamName)
+                  ? 'RRB Mains: English, Numerical, Reasoning, General Awareness & Computer Awareness'
+                  : 'Mains: English, Numerical, Reasoning & General Awareness'
+                : isSSCExam(activeExamName)
+                ? 'SSC CGL: English, Numerical, Reasoning & General Awareness'
+                : 'Prelims: English, Numerical & Reasoning Ability'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5 text-xs">
+            {stage === 'mains' && (
+              <span className="px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                + General Awareness
+              </span>
+            )}
+            {isRRBExam(activeExamName) && stage === 'mains' && (
+              <span className="px-2 py-0.5 rounded-full font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                + Computer Awareness
+              </span>
+            )}
+            {isSSCExam(activeExamName) && stage === 'prelims' && (
+              <span className="px-2 py-0.5 rounded-full font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
+                + General Awareness (SSC)
+              </span>
+            )}
+          </div>
+        </div>
+
+        {activeSectionConfigs.map(({ key, label, color }) => (
         <div
           key={key}
           className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4"
@@ -444,6 +496,7 @@ export function MockForm({ existingMock }: MockFormProps) {
           </div>
         </div>
       ))}
+      </div>
 
       {/* Live Summary */}
       <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-4">

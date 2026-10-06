@@ -9,7 +9,7 @@ import { batchImportMocks } from '../firebase/firestore';
 import { signOutUser } from '../firebase/auth';
 import {
   Sun, Moon, Monitor, Download, Upload, LogOut, User, Trash2,
-  ChevronRight, AlertTriangle,
+  ChevronRight, AlertTriangle, Pencil, Check, AlertCircle,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -20,6 +20,7 @@ export default function SettingsPage() {
     updateSettings,
     addCustomExam,
     addCustomTestSeries,
+    updateUserName,
     selectedExam,
     selectedTestSeries,
     isAllExams,
@@ -34,6 +35,50 @@ export default function SettingsPage() {
   const [customSeriesExam, setCustomSeriesExam] = useState('');
   const [customSeriesInput, setCustomSeriesInput] = useState('');
   const [importConfirm, setImportConfirm] = useState(false);
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSuccess, setNameSuccess] = useState<string | null>(null);
+
+  const handleStartEditName = () => {
+    setNameInput(user?.displayName ?? '');
+    setNameError(null);
+    setNameSuccess(null);
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setNameError(null);
+    setNameInput('');
+  };
+
+  const handleSaveName = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      setNameError('Name cannot be empty.');
+      return;
+    }
+    if (trimmed === user?.displayName) {
+      setIsEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      await updateUserName(trimmed);
+      setNameSuccess('Username updated successfully!');
+      setIsEditingName(false);
+      setTimeout(() => setNameSuccess(null), 3500);
+    } catch (err: unknown) {
+      setNameError(err instanceof Error ? err.message : 'Failed to update username.');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleExportCSV = () => {
     const data = isAllExams ? mocks : contextMocks;
@@ -96,16 +141,121 @@ export default function SettingsPage() {
       </div>
 
       {/* Profile */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <User size={16} className="text-slate-400" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Profile</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <User size={18} className="text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Profile</h3>
+          </div>
+          {!isEditingName && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Pencil size={14} />}
+              onClick={handleStartEditName}
+              id="edit-username-btn"
+            >
+              Edit Name
+            </Button>
+          )}
         </div>
-        {user?.photoURL && (
-          <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full mb-3" />
-        )}
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{user?.displayName ?? 'User'}</p>
-        <p className="text-xs text-slate-400">{user?.email}</p>
+
+        <div className="flex items-start gap-4">
+          {user?.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt="Profile"
+              className="w-12 h-12 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+              {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            {!isEditingName ? (
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                    {user?.displayName || 'Aspirant'}
+                  </h4>
+                  <button
+                    onClick={handleStartEditName}
+                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded"
+                    title="Edit username"
+                    aria-label="Edit username"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{user?.email}</p>
+                {user?.isAnonymous && (
+                  <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    Guest Account
+                  </span>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveName} className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="username-input"
+                    className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1"
+                  >
+                    Display Name
+                  </label>
+                  <input
+                    id="username-input"
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => {
+                      setNameInput(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
+                    placeholder="Enter your name..."
+                    autoFocus
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {nameError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {nameError}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    loading={savingName}
+                    icon={<Check size={14} />}
+                    id="save-username-btn"
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEditName}
+                    disabled={savingName}
+                    id="cancel-username-btn"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {nameSuccess && (
+              <div className="mt-3 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
+                <Check size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{nameSuccess}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Theme */}

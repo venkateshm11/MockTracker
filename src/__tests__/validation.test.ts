@@ -65,4 +65,85 @@ describe('validateMockForm', () => {
     });
     expect(errors).toHaveLength(0);
   });
+
+  it('passes valid RRB Mains form with GA and Computer Awareness', () => {
+    const errors = validateMockForm({
+      exam: 'RRB PO',
+      testSeries: 'Testbook',
+      sections: {
+        english: { questions: 40, attempted: 30, correct: 25, wrong: 5, marks: 23.75, timeSeconds: 1200 },
+        numerical: { questions: 40, attempted: 25, correct: 20, wrong: 5, marks: 23.75, timeSeconds: 1500 },
+        reasoning: { questions: 40, attempted: 30, correct: 28, wrong: 2, marks: 33.5, timeSeconds: 1500 },
+        general_awareness: { questions: 40, attempted: 30, correct: 25, wrong: 5, marks: 23.75, timeSeconds: 900 },
+        computer_awareness: { questions: 40, attempted: 35, correct: 30, wrong: 5, marks: 14.25, timeSeconds: 900 },
+      },
+      sectionLabels: {
+        english: 'English',
+        numerical: 'Numerical Ability',
+        reasoning: 'Reasoning Ability',
+        general_awareness: 'General Awareness',
+        computer_awareness: 'Computer Awareness',
+      },
+    });
+    expect(errors).toHaveLength(0);
+  });
+});
+
+describe('getSectionsForExamAndStage', () => {
+  it('returns 3 base sections for regular prelims', async () => {
+    const { getSectionsForExamAndStage } = await import('../constants/sections');
+    const sections = getSectionsForExamAndStage('IBPS PO', 'prelims');
+    expect(sections.map((s) => s.key)).toEqual(['english', 'numerical', 'reasoning']);
+  });
+
+  it('adds general awareness for mains exams', async () => {
+    const { getSectionsForExamAndStage } = await import('../constants/sections');
+    const sections = getSectionsForExamAndStage('IBPS PO', 'mains');
+    expect(sections.map((s) => s.key)).toEqual([
+      'english',
+      'numerical',
+      'reasoning',
+      'general_awareness',
+    ]);
+  });
+
+  it('adds both general awareness and computer awareness for RRB mains', async () => {
+    const { getSectionsForExamAndStage } = await import('../constants/sections');
+    const rrbPo = getSectionsForExamAndStage('RRB PO', 'mains');
+    expect(rrbPo.map((s) => s.key)).toEqual([
+      'english',
+      'numerical',
+      'reasoning',
+      'general_awareness',
+      'computer_awareness',
+    ]);
+
+    const rrbClerk = getSectionsForExamAndStage('IBPS RRB Clerk', 'mains');
+    expect(rrbClerk.map((s) => s.key)).toEqual([
+      'english',
+      'numerical',
+      'reasoning',
+      'general_awareness',
+      'computer_awareness',
+    ]);
+  });
+
+  it('provides general awareness for SSC CGL in prelims and mains', async () => {
+    const { getSectionsForExamAndStage } = await import('../constants/sections');
+    const prelims = getSectionsForExamAndStage('SSC CGL', 'prelims');
+    expect(prelims.map((s) => s.key)).toEqual([
+      'english',
+      'numerical',
+      'reasoning',
+      'general_awareness',
+    ]);
+
+    const mains = getSectionsForExamAndStage('SSC CGL', 'mains');
+    expect(mains.map((s) => s.key)).toEqual([
+      'english',
+      'numerical',
+      'reasoning',
+      'general_awareness',
+    ]);
+  });
 });

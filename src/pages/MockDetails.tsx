@@ -61,6 +61,13 @@ export default function MockDetailsPage() {
               <span>{mock.testSeries}</span>
               <span>•</span>
               <span className={`px-1.5 py-0.5 rounded-full font-medium ${
+                mock.stage === 'mains'
+                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+              }`}>
+                {mock.stage === 'mains' ? 'Mains' : 'Prelims'}
+              </span>
+              <span className={`px-1.5 py-0.5 rounded-full font-medium ${
                 mock.testType === 'full'
                   ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                   : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'

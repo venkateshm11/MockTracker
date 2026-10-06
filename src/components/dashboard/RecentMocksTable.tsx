@@ -39,8 +39,17 @@ export function RecentMocksTable() {
           >
             {/* Desktop row */}
             <div className="hidden sm:grid grid-cols-5 items-center px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 last:border-0">
-              <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                Mock #{mock.mockNumber}
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                  Mock #{mock.mockNumber}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                  mock.stage === 'mains'
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                }`}>
+                  {mock.stage === 'mains' ? 'Mains' : 'Prelims'}
+                </span>
               </div>
               <div className="text-sm text-slate-600 dark:text-slate-400">{formatDate(mock.date)}</div>
               <div className="text-sm font-semibold text-slate-900 dark:text-white">{formatScore(overall.marks)}</div>
@@ -51,9 +60,16 @@ export function RecentMocksTable() {
             {/* Mobile card */}
             <div className="sm:hidden flex items-center justify-between px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 last:border-0">
               <div>
-                <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                   Mock #{mock.mockNumber}
-                  <span className="ml-2 text-xs font-normal text-slate-400">{formatDate(mock.date)}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                    mock.stage === 'mains'
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  }`}>
+                    {mock.stage === 'mains' ? 'Mains' : 'Prelims'}
+                  </span>
+                  <span className="text-xs font-normal text-slate-400">{formatDate(mock.date)}</span>
                 </p>
                 <div className="flex gap-3 mt-0.5">
                   <span className="text-sm font-bold text-slate-900 dark:text-white">{formatScore(overall.marks)}</span>

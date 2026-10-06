@@ -10,15 +10,19 @@ export interface SectionData {
   timeSeconds: number;
 }
 
-export type SectionKey = 'english' | 'numerical' | 'reasoning' | string;
+export type SectionKey =
+  | 'english'
+  | 'numerical'
+  | 'reasoning'
+  | 'general_awareness'
+  | 'computer_awareness'
+  | string;
 
 export interface MockSections {
-  english: SectionData;
-  numerical: SectionData;
-  reasoning: SectionData;
   [key: string]: SectionData;
 }
 
+export type ExamStage = 'prelims' | 'mains';
 export type TestType = 'full' | 'sectional';
 
 export interface MockDocument {
@@ -26,6 +30,7 @@ export interface MockDocument {
   mockNumber: number;
   exam: string;
   testSeries: string;
+  stage?: ExamStage;
   testType: TestType;
   date: Timestamp | Date;
   sections: MockSections;

@@ -6,6 +6,7 @@ import {
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  updateProfile,
   type User,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config';
@@ -90,6 +91,39 @@ export const signUpWithEmail = async (email: string, password: string): Promise<
   }
   const result = await createUserWithEmailAndPassword(auth, email, password);
   return result.user;
+};
+
+export const updateUserProfile = async (displayName: string): Promise<AppUser> => {
+  const trimmed = displayName.trim();
+  if (!trimmed) {
+    throw new Error('Name cannot be empty.');
+  }
+
+  if (auth && auth.currentUser) {
+    await updateProfile(auth.currentUser, { displayName: trimmed });
+  }
+
+  const localUser = getStoredLocalUser();
+  if (localUser) {
+    const updated: AppUser = { ...localUser, displayName: trimmed };
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated));
+    notifyListeners(updated);
+    return updated;
+  }
+
+  if (auth && auth.currentUser) {
+    const updatedUser: AppUser = {
+      uid: auth.currentUser.uid,
+      email: auth.currentUser.email,
+      displayName: trimmed,
+      photoURL: auth.currentUser.photoURL,
+      isAnonymous: auth.currentUser.isAnonymous,
+    };
+    notifyListeners(updatedUser);
+    return updatedUser;
+  }
+
+  throw new Error('No user is currently signed in');
 };
 
 export const signOutUser = async (): Promise<void> => {

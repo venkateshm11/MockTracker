@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { AppUser } from '../firebase/auth';
+import { type AppUser, updateUserProfile } from '../firebase/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useMocks } from '../hooks/useMocks';
 import { useSettings } from '../hooks/useSettings';
@@ -19,6 +19,7 @@ interface AppContextValue {
   updateSettings: ReturnType<typeof useSettings>['updateSettings'];
   addCustomExam: ReturnType<typeof useSettings>['addCustomExam'];
   addCustomTestSeries: ReturnType<typeof useSettings>['addCustomTestSeries'];
+  updateUserName: (name: string) => Promise<void>;
   selectedExam: string | null;
   selectedTestSeries: string | null;
   isAllExams: boolean;
@@ -88,6 +89,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSettings({ lastSelectedTestSeries: ts });
   };
 
+  const updateUserName = async (name: string) => {
+    await updateUserProfile(name);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -102,6 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSettings,
         addCustomExam,
         addCustomTestSeries,
+        updateUserName,
         selectedExam,
         selectedTestSeries,
         isAllExams,

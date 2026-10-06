@@ -148,7 +148,14 @@ export default function MockHistoryPage() {
                     )}
                   </div>
                   <div className="text-sm text-slate-600 dark:text-slate-400">{formatDate(mock.date)}</div>
-                  <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      mock.stage === 'mains'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                    }`}>
+                      {mock.stage === 'mains' ? 'Mains' : 'Prelims'}
+                    </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       mock.testType === 'full'
                         ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
@@ -165,10 +172,17 @@ export default function MockHistoryPage() {
                 {/* Mobile card */}
                 <div className="sm:hidden flex items-center justify-between px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 last:border-0">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                         Mock #{mock.mockNumber}
                       </p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        mock.stage === 'mains'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                      }`}>
+                        {mock.stage === 'mains' ? 'Mains' : 'Prelims'}
+                      </span>
                       <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                         mock.testType === 'full'
                           ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'

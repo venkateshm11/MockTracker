@@ -15,15 +15,8 @@ import { SECTION_CONFIGS } from '../../constants/sections';
 import { Select } from '../ui/FormControls';
 import { formatTime } from '../../utils/formatters';
 
-type SectionOption = 'overall' | 'english' | 'numerical' | 'reasoning';
+type SectionOption = 'overall' | 'english' | 'numerical' | 'reasoning' | 'general_awareness' | 'computer_awareness' | string;
 type MetricOption = 'score' | 'accuracy' | 'attempted' | 'attemptRate' | 'time';
-
-const sectionOptions = [
-  { value: 'overall', label: 'Overall' },
-  { value: 'english', label: 'English' },
-  { value: 'numerical', label: 'Numerical Ability' },
-  { value: 'reasoning', label: 'Reasoning Ability' },
-];
 
 const metricOptions = [
   { value: 'score', label: 'Score' },
@@ -53,6 +46,18 @@ export function SectionTrendChart() {
   const [metric, setMetric] = useState<MetricOption>('score');
   const { mocks, selectedExam, selectedTestSeries, isAllExams } = useApp();
   const { chartData } = useAnalytics(mocks, selectedExam, selectedTestSeries, isAllExams);
+
+  const sectionOptions = useMemo(() => {
+    const list: { value: string; label: string }[] = [{ value: 'overall', label: 'Overall' }];
+    for (const c of SECTION_CONFIGS) {
+      if (chartData.some((row) => `${c.key}_score` in row)) {
+        list.push({ value: c.key, label: c.label });
+      }
+    }
+    return list.length > 1
+      ? list
+      : [{ value: 'overall', label: 'Overall' }, ...SECTION_CONFIGS.map((c) => ({ value: c.key, label: c.label }))];
+  }, [chartData]);
 
   const dataKey = getDataKey(section, metric);
   const color = section === 'overall' ? '#6366f1' : getColor(section);
