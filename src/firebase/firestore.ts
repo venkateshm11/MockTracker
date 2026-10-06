@@ -13,8 +13,15 @@ import {
   writeBatch,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './config';
+import { auth, db, isFirebaseConfigured } from './config';
 import { MockDocument, MockWithId } from '../types/mock';
+
+function isLocalStorageUser(uid: string): boolean {
+  if (!db || !isFirebaseConfigured) return true;
+  if (uid === 'guest_user' || uid.startsWith('local_')) return true;
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) return true;
+  return false;
+}
 
 function getLocalKey(uid: string) {
   return `mocktrack_mocks_${uid}`;
@@ -75,9 +82,13 @@ function notifyLocalSubscribers(uid: string, mocks: MockWithId[]) {
   }
 }
 
-function mocksRef(uid: string) {
+function getDb() {
   if (!db) throw new Error('Firestore not initialized');
-  return collection(db, 'users', uid, 'mocks');
+  return db;
+}
+
+function mocksRef(uid: string) {
+  return collection(getDb(), 'users', uid, 'mocks');
 }
 
 export async function addMock(
@@ -86,7 +97,7 @@ export async function addMock(
 ): Promise<string> {
   const now = Timestamp.now();
 
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     const newId = `mock_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const newMock: MockWithId = {
@@ -101,18 +112,28 @@ export async function addMock(
     return newId;
   }
 
-  const docRef = await addDoc(mocksRef(uid), {
-    ...data,
-    createdAt: now,
-    updatedAt: now,
-  });
-  return docRef.id;
+  try {
+    const docRef = await addDoc(mocksRef(uid), {
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return docRef.id;
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error?.code === 'permission-denied') {
+      throw new Error(
+        'Missing or insufficient permissions in Firebase Firestore. Please publish your firestore.rules in the Firebase Console (Firestore Database → Rules tab).'
+      );
+    }
+    throw err;
+  }
 }
 
 export async function updateMock(uid: string, mockId: string, data: Partial<MockDocument>): Promise<void> {
   const now = Timestamp.now();
 
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     const idx = localMocks.findIndex((m) => m.id === mockId);
     if (idx !== -1) {
@@ -126,24 +147,24 @@ export async function updateMock(uid: string, mockId: string, data: Partial<Mock
     return;
   }
 
-  const ref = doc(db, 'users', uid, 'mocks', mockId);
+  const ref = doc(getDb(), 'users', uid, 'mocks', mockId);
   await updateDoc(ref, { ...data, updatedAt: now });
 }
 
 export async function getMock(uid: string, mockId: string): Promise<MockWithId | null> {
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     return localMocks.find((m) => m.id === mockId) ?? null;
   }
 
-  const ref = doc(db, 'users', uid, 'mocks', mockId);
+  const ref = doc(getDb(), 'users', uid, 'mocks', mockId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as MockWithId;
 }
 
 export async function getMocks(uid: string, constraints?: QueryConstraint[]): Promise<MockWithId[]> {
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     return [...localMocks].sort((a, b) => b.mockNumber - a.mockNumber);
   }
@@ -156,7 +177,7 @@ export async function getMocks(uid: string, constraints?: QueryConstraint[]): Pr
 }
 
 export async function getAllMocks(uid: string): Promise<MockWithId[]> {
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     return [...localMocks].sort((a, b) => a.mockNumber - b.mockNumber);
   }
@@ -171,7 +192,7 @@ export async function getMocksByExamSeries(
   exam: string,
   testSeries: string
 ): Promise<MockWithId[]> {
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     return localMocks
       .filter((m) => m.exam === exam && m.testSeries === testSeries)
@@ -189,7 +210,7 @@ export async function getMocksByExamSeries(
 }
 
 export function subscribeMocks(uid: string, callback: (mocks: MockWithId[]) => void) {
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     let set = localSubscribers.get(uid);
     if (!set) {
       set = new Set();
@@ -211,16 +232,26 @@ export function subscribeMocks(uid: string, callback: (mocks: MockWithId[]) => v
   }
 
   const q = query(mocksRef(uid), orderBy('createdAt', 'asc'));
-  return onSnapshot(q, (snap) => {
-    const mocks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockWithId));
-    callback(mocks);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const mocks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockWithId));
+      callback(mocks);
+    },
+    (err) => {
+      console.warn('Firestore subscription error (fallback to local if available):', err);
+      const localMocks = parseLocalMocks(uid);
+      if (localMocks.length > 0) {
+        callback(localMocks);
+      }
+    }
+  );
 }
 
 export async function batchImportMocks(uid: string, mocks: Omit<MockDocument, 'id'>[]): Promise<number> {
   const now = Timestamp.now();
 
-  if (!db || !isFirebaseConfigured || uid === 'guest_user') {
+  if (isLocalStorageUser(uid)) {
     const localMocks = parseLocalMocks(uid);
     let count = 0;
     for (const m of mocks) {
@@ -238,7 +269,7 @@ export async function batchImportMocks(uid: string, mocks: Omit<MockDocument, 'i
     return count;
   }
 
-  const batch = writeBatch(db);
+  const batch = writeBatch(getDb());
   const ref = mocksRef(uid);
   let count = 0;
   for (const mock of mocks) {
