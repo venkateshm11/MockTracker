@@ -97,26 +97,45 @@ export default function DashboardPage() {
       ) : !hasData ? (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
           <EmptyState
-            title="No mock tests recorded yet"
+            title={mocks.length > 0 ? "No mocks for this selection" : "No mock tests recorded yet"}
             description={
               isAllExams
                 ? 'Add your first mock test to start tracking performance.'
+                : mocks.length > 0
+                ? `You have ${mocks.length} mock${mocks.length > 1 ? 's' : ''} in total, but none recorded under ${selectedExam} → ${selectedTestSeries}.`
                 : `No mocks recorded for ${selectedExam} → ${selectedTestSeries} yet.`
             }
             action={
               <div className="flex flex-col sm:flex-row gap-2.5 items-center justify-center">
+                {mocks.length > 0 && !isAllExams && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const latest = mocks[mocks.length - 1];
+                      if (latest) {
+                        setSelectedExam(latest.exam);
+                        setSelectedTestSeries(latest.testSeries);
+                      }
+                    }}
+                    id="dashboard-switch-to-latest-btn"
+                  >
+                    View Latest ({mocks[mocks.length - 1]?.exam})
+                  </Button>
+                )}
                 <Button onClick={() => navigate('/add')} icon={<Plus size={16} />} id="dashboard-add-first-mock-btn">
-                  Add Your First Mock
+                  Add Mock
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleLoadSamples}
-                  loading={loadingSample}
-                  icon={<Sparkles size={16} className="text-amber-500" />}
-                  id="dashboard-load-sample-btn"
-                >
-                  Load 5 Sample Mocks
-                </Button>
+                {mocks.length === 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleLoadSamples}
+                    loading={loadingSample}
+                    icon={<Sparkles size={16} className="text-amber-500" />}
+                    id="dashboard-load-sample-btn"
+                  >
+                    Load 5 Sample Mocks
+                  </Button>
+                )}
               </div>
             }
             icon={<Activity size={40} />}
@@ -124,6 +143,21 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
+          {/* Baseline banner when only 1 mock recorded */}
+          {contextMocks.length === 1 && (
+            <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-4 flex items-start gap-3">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg shrink-0">
+                <Sparkles size={18} />
+              </div>
+              <div className="text-sm">
+                <p className="font-semibold text-indigo-950 dark:text-indigo-200">First mock recorded! (Baseline established)</p>
+                <p className="text-indigo-700 dark:text-indigo-300 text-xs mt-0.5">
+                  Your baseline scores and accuracy have been successfully saved below. Trend direction and comparison analytics will unlock automatically once you record your 2nd mock test.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Stat cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
@@ -154,11 +188,17 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Score Trend</p>
-              <TrendBadge trend={scoreTrend} />
+              <TrendBadge trend={scoreTrend} count={contextMocks.length} />
+              {contextMocks.length === 1 && (
+                <p className="text-[11px] text-slate-400 mt-1">Add 2nd mock to calculate trend</p>
+              )}
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Accuracy Trend</p>
-              <TrendBadge trend={accuracyTrend} />
+              <TrendBadge trend={accuracyTrend} count={contextMocks.length} />
+              {contextMocks.length === 1 && (
+                <p className="text-[11px] text-slate-400 mt-1">Add 2nd mock to calculate trend</p>
+              )}
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Improvement</p>
@@ -169,9 +209,11 @@ export default function DashboardPage() {
                   ? 'text-red-600 dark:text-red-400'
                   : 'text-slate-900 dark:text-white'
               }`}>
-                {improvement !== null ? formatImprovement(improvement) : '—'}
+                {improvement !== null ? formatImprovement(improvement) : (contextMocks.length === 1 ? 'Baseline' : '—')}
               </p>
-              <p className="text-xs text-slate-400">first → latest</p>
+              <p className="text-xs text-slate-400">
+                {contextMocks.length === 1 ? 'Initial mock set' : 'first → latest'}
+              </p>
             </div>
           </div>
 

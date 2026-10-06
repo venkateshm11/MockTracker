@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { ContextSelector } from '../components/filters/ContextSelector';
 import { Select } from '../components/ui/FormControls';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Button } from '../components/ui/Button';
 import { SECTION_CONFIGS } from '../constants/sections';
 import { calculateOverall, calculateSectionStats, sortMocksByNumber } from '../utils/calculations';
 import { formatScore, formatPercent, formatTime, formatImprovement, formatDate } from '../utils/formatters';
-import { GitCompare, ArrowRight } from 'lucide-react';
+import { GitCompare, ArrowRight, Plus } from 'lucide-react';
 
 function DiffCell({
   a,
@@ -51,6 +53,7 @@ function DiffCell({
 
 export default function ComparePage() {
   const { mocks, selectedExam, selectedTestSeries, isAllExams } = useApp();
+  const navigate = useNavigate();
   const [mockAId, setMockAId] = useState('');
   const [mockBId, setMockBId] = useState('');
 
@@ -89,9 +92,18 @@ export default function ComparePage() {
       ) : sortedContext.length < 2 ? (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
           <EmptyState
-            title="Need at least 2 mocks"
-            description="Add more mocks to this test series to compare performance."
+            title={sortedContext.length === 1 ? "1 mock recorded — need 1 more to compare" : "Need at least 2 mocks"}
+            description={
+              sortedContext.length === 1
+                ? `Mock #${sortedContext[0]?.mockNumber} is recorded. Add Mock #2 to compare performance side by side.`
+                : "Add at least 2 mocks to this test series to compare performance side by side."
+            }
             icon={<GitCompare size={40} />}
+            action={
+              <Button onClick={() => navigate('/add')} icon={<Plus size={16} />}>
+                {sortedContext.length === 1 ? 'Add Mock #2' : 'Add Mock'}
+              </Button>
+            }
           />
         </div>
       ) : (

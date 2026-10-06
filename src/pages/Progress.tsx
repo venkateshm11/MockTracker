@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 import { SECTION_CONFIGS } from '../constants/sections';
 import { calculateOverall, calculateSectionStats, calculateRollingAverage, calculateImprovement, calculateImprovementPercentage } from '../utils/calculations';
 import { formatScore, formatPercent, formatImprovement, formatImprovementPercent } from '../utils/formatters';
-import { Plus, Activity, TrendingUp } from 'lucide-react';
+import { Plus, Activity, TrendingUp, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface StatRowProps {
@@ -130,6 +130,21 @@ export default function ProgressPage() {
         </div>
       ) : (
         <>
+          {/* Baseline banner when only 1 mock recorded */}
+          {sorted.length === 1 && (
+            <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-4 flex items-start gap-3">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg shrink-0">
+                <Sparkles size={18} />
+              </div>
+              <div className="text-sm">
+                <p className="font-semibold text-indigo-950 dark:text-indigo-200">First mock recorded! (Baseline established)</p>
+                <p className="text-indigo-700 dark:text-indigo-300 text-xs mt-0.5">
+                  Showing baseline metrics from Mock #{sorted[0]?.mockNumber}. Progress deltas, improvement rates, and rolling averages will activate once you record Mock #2.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Score progress */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
             <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Score</h3>
@@ -138,7 +153,7 @@ export default function ProgressPage() {
             <StatRow
               label="Latest Mock Score"
               value={latestOverall ? formatScore(latestOverall.marks) : null}
-              change={scoreImprovement !== null ? formatImprovement(scoreImprovement) : undefined}
+              change={sorted.length >= 2 && scoreImprovement !== null ? formatImprovement(scoreImprovement) : undefined}
               isPositive={scoreImprovement !== null && scoreImprovement >= 0}
             />
             <StatRow label="Best Score" value={bestScore !== null ? formatScore(bestScore) : null} />
@@ -148,12 +163,12 @@ export default function ProgressPage() {
             ))}
             <StatRow
               label="Overall Improvement"
-              value={scoreImprovement !== null ? formatImprovement(scoreImprovement) : null}
+              value={sorted.length >= 2 && scoreImprovement !== null ? formatImprovement(scoreImprovement) : (sorted.length === 1 ? 'Baseline set' : null)}
               isPositive={scoreImprovement !== null && scoreImprovement >= 0}
             />
             <StatRow
               label="Improvement %"
-              value={scorePct !== null ? formatImprovementPercent(scorePct) : null}
+              value={sorted.length >= 2 && scorePct !== null ? formatImprovementPercent(scorePct) : (sorted.length === 1 ? 'Baseline set' : null)}
               isPositive={scorePct !== null && scorePct >= 0}
             />
           </div>
@@ -165,7 +180,7 @@ export default function ProgressPage() {
             <StatRow
               label="Latest Mock Accuracy"
               value={latestOverall ? formatPercent(latestOverall.accuracy) : null}
-              change={accuracyImprovement !== null ? `${formatImprovement(accuracyImprovement)} pp` : undefined}
+              change={sorted.length >= 2 && accuracyImprovement !== null ? `${formatImprovement(accuracyImprovement)} pp` : undefined}
               isPositive={accuracyImprovement !== null && accuracyImprovement >= 0}
             />
             <StatRow label="Best Accuracy" value={bestAccuracy !== null ? formatPercent(bestAccuracy) : null} />
@@ -179,7 +194,7 @@ export default function ProgressPage() {
             <StatRow
               label="Latest Mock"
               value={latestOverall ? formatPercent(latestOverall.attemptRate) : null}
-              change={attemptRateImprovement !== null ? `${formatImprovement(attemptRateImprovement)} pp` : undefined}
+              change={sorted.length >= 2 && attemptRateImprovement !== null ? `${formatImprovement(attemptRateImprovement)} pp` : undefined}
               isPositive={attemptRateImprovement !== null && attemptRateImprovement >= 0}
             />
             <StatRow label="Best" value={bestAttemptRate !== null ? formatPercent(bestAttemptRate) : null} />
@@ -205,7 +220,7 @@ export default function ProgressPage() {
                 <StatRow
                   label="Latest Score"
                   value={formatScore(latestSec.marks)}
-                  change={formatImprovement(scoreChange)}
+                  change={sorted.length >= 2 ? formatImprovement(scoreChange) : undefined}
                   isPositive={scoreChange >= 0}
                 />
                 <StatRow label="Best Score" value={formatScore(bestSectionScore)} />
@@ -213,14 +228,14 @@ export default function ProgressPage() {
                 <StatRow
                   label="Latest Accuracy"
                   value={formatPercent(latestSec.accuracy)}
-                  change={`${formatImprovement(accChange)} pp`}
+                  change={sorted.length >= 2 ? `${formatImprovement(accChange)} pp` : undefined}
                   isPositive={accChange >= 0}
                 />
                 <StatRow label="First Attempt Rate" value={formatPercent(firstSec.attemptRate)} />
                 <StatRow
                   label="Latest Attempt Rate"
                   value={formatPercent(latestSec.attemptRate)}
-                  change={`${formatImprovement(arChange)} pp`}
+                  change={sorted.length >= 2 ? `${formatImprovement(arChange)} pp` : undefined}
                   isPositive={arChange >= 0}
                 />
               </div>

@@ -45,7 +45,7 @@ export function SectionCards() {
                   {label}
                 </h4>
               </div>
-              <TrendBadge trend={trend} />
+              <TrendBadge trend={trend} count={sorted.length} />
             </div>
 
             <div className="grid grid-cols-2 gap-2">

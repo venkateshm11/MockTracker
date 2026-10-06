@@ -23,17 +23,26 @@ export function ContextSelector({ showCount = true }: ContextSelectorProps) {
   const examOptions = useMemo(() => {
     const predefined = PREDEFINED_EXAMS.map((e) => e.name);
     const custom = settings.customExams.filter((e) => !predefined.includes(e));
-    return [...predefined, ...custom];
-  }, [settings.customExams]);
+    const fromMocks = mocks
+      .map((m) => m.exam)
+      .filter((e) => e && !predefined.includes(e) && !custom.includes(e));
+    const uniqueFromMocks = Array.from(new Set(fromMocks));
+    return [...predefined, ...custom, ...uniqueFromMocks];
+  }, [settings.customExams, mocks]);
 
   // Build test series options for selected exam
   const testSeriesOptions = useMemo(() => {
     if (!selectedExam) return [];
     const predefined = PREDEFINED_TEST_SERIES[selectedExam] ?? [];
     const custom = settings.customTestSeries[selectedExam] ?? [];
-    const all = [...predefined, ...custom.filter((s) => !predefined.includes(s))];
+    const fromMocks = mocks
+      .filter((m) => m.exam === selectedExam)
+      .map((m) => m.testSeries)
+      .filter((s) => s && !predefined.includes(s) && !custom.includes(s));
+    const uniqueFromMocks = Array.from(new Set(fromMocks));
+    const all = [...predefined, ...custom.filter((s) => !predefined.includes(s)), ...uniqueFromMocks];
     return all;
-  }, [selectedExam, settings.customTestSeries]);
+  }, [selectedExam, settings.customTestSeries, mocks]);
 
   // Count mocks in current context
   const mockCount = useMemo(() => {

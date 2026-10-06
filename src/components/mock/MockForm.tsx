@@ -39,7 +39,19 @@ interface MockFormProps {
 }
 
 export function MockForm({ existingMock }: MockFormProps) {
-  const { mocks, addNewMock, editMock, settings, addCustomExam, addCustomTestSeries, selectedExam, selectedTestSeries } = useApp();
+  const {
+    mocks,
+    addNewMock,
+    editMock,
+    settings,
+    addCustomExam,
+    addCustomTestSeries,
+    selectedExam,
+    selectedTestSeries,
+    setSelectedExam,
+    setSelectedTestSeries,
+    setIsAllExams,
+  } = useApp();
   const navigate = useNavigate();
 
   // --- Form state ---
@@ -144,12 +156,12 @@ export function MockForm({ existingMock }: MockFormProps) {
   const handleSectionChange = (key: string, field: keyof SectionInput, value: string) => {
     setSections((prev) => {
       const updated = { ...prev, [key]: { ...prev[key], [field]: value } };
-      // Auto-calculate wrong if correct and attempted are filled
+      // Auto-calculate wrong if correct or attempted are changed
       if (field === 'correct' || field === 'attempted') {
         const sec = updated[key];
-        const attempted = parseFloat(sec.attempted) || 0;
-        const correct = parseFloat(sec.correct) || 0;
-        if (field === 'correct' && sec.attempted !== '') {
+        if (sec.attempted !== '' && sec.correct !== '') {
+          const attempted = parseFloat(sec.attempted) || 0;
+          const correct = parseFloat(sec.correct) || 0;
           updated[key] = { ...sec, wrong: String(Math.max(0, attempted - correct)) };
         }
       }
@@ -249,9 +261,15 @@ export function MockForm({ existingMock }: MockFormProps) {
 
       if (existingMock) {
         await editMock(existingMock.id, payload);
+        setSelectedExam(finalExam);
+        setSelectedTestSeries(finalSeries);
+        setIsAllExams(false);
         navigate(`/mocks/${existingMock.id}`);
       } else {
         const id = await addNewMock(payload);
+        setSelectedExam(finalExam);
+        setSelectedTestSeries(finalSeries);
+        setIsAllExams(false);
         navigate(`/mocks/${id}`);
       }
     } catch (err: unknown) {

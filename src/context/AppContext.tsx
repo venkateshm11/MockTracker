@@ -43,6 +43,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [isAllExams, setIsAllExams] = useState(false);
 
+  // Auto-initialize context from latest mock if none is currently selected
+  useEffect(() => {
+    if (mocksLoading || mocks.length === 0 || isAllExams) return;
+    if (!selectedExam) {
+      const latest = mocks[mocks.length - 1];
+      if (latest?.exam) {
+        setSelectedExamState(latest.exam);
+        setSelectedTestSeriesState(latest.testSeries || null);
+      }
+    }
+  }, [mocks, mocksLoading, selectedExam, isAllExams]);
+
   // System theme detection
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (settings.theme === 'dark') return 'dark';

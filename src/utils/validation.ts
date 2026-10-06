@@ -18,6 +18,10 @@ function isNonNegativeNumber(value: number): boolean {
   return typeof value === 'number' && !isNaN(value) && value >= 0;
 }
 
+function isValidNumber(value: number): boolean {
+  return typeof value === 'number' && !isNaN(value) && isFinite(value);
+}
+
 export function validateSection(
   key: string,
   label: string,
@@ -38,8 +42,8 @@ export function validateSection(
   if (!isNonNegativeNumber(wrong)) {
     errors.push({ field: `${key}.wrong`, message: `${label}: Wrong must be a non-negative number.` });
   }
-  if (!isNonNegativeNumber(marks)) {
-    errors.push({ field: `${key}.marks`, message: `${label}: Marks must be a non-negative number.` });
+  if (!isValidNumber(marks)) {
+    errors.push({ field: `${key}.marks`, message: `${label}: Marks must be a valid number.` });
   }
   if (!isNonNegativeNumber(timeSeconds)) {
     errors.push({ field: `${key}.timeSeconds`, message: `${label}: Time must be non-negative.` });
