@@ -23,12 +23,12 @@ let db: Firestore | null = null;
 if (isFirebaseConfigured) {
   try {
     const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+      apiKey: "AIzaSyAPkaOrc8w7j8Q49ozBNG-ewpTBJJ5qW6A",
+      authDomain: "mocktracker-7fc05.firebaseapp.com",
+      projectId: "mocktracker-7fc05",
+      storageBucket: "mocktracker-7fc05.firebasestorage.app",
+      messagingSenderId: "937327396612",
+      appId: "1:937327396612:web:66843468a645c52a72b251"
     };
 
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -44,3 +44,5 @@ if (isFirebaseConfigured) {
 
 export { app, auth, db };
 export default app;
+
+

@@ -41,8 +41,13 @@ export function getSectionsForExamAndStage(
   exam: string,
   stage: ExamStage = 'prelims'
 ): SectionConfig[] {
+  // RRB PO / RRB Clerk prelims do NOT have an English section
+  const includeEnglish = !(isRRBExam(exam) && stage === 'prelims');
+
   const sections: SectionConfig[] = [
-    { key: 'english', label: 'English', shortLabel: 'ENG', color: '#6366f1' },
+    ...(includeEnglish
+      ? [{ key: 'english', label: 'English', shortLabel: 'ENG', color: '#6366f1' }]
+      : []),
     { key: 'numerical', label: 'Numerical Ability', shortLabel: 'NUM', color: '#f59e0b' },
     { key: 'reasoning', label: 'Reasoning Ability', shortLabel: 'RES', color: '#10b981' },
   ];

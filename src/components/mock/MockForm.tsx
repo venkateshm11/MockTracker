@@ -442,6 +442,8 @@ export function MockForm({ existingMock }: MockFormProps) {
                 ? isRRBExam(activeExamName)
                   ? 'RRB Mains: English, Numerical, Reasoning, General Awareness & Computer Awareness'
                   : 'Mains: English, Numerical, Reasoning & General Awareness'
+                : isRRBExam(activeExamName)
+                ? 'RRB Prelims: Numerical & Reasoning Ability (no English)'
                 : isSSCExam(activeExamName)
                 ? 'SSC CGL: English, Numerical, Reasoning & General Awareness'
                 : 'Prelims: English, Numerical & Reasoning Ability'}
@@ -461,6 +463,11 @@ export function MockForm({ existingMock }: MockFormProps) {
             {isSSCExam(activeExamName) && stage === 'prelims' && (
               <span className="px-2 py-0.5 rounded-full font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
                 + General Awareness (SSC)
+              </span>
+            )}
+            {isRRBExam(activeExamName) && stage === 'prelims' && (
+              <span className="px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                − English (RRB Prelims)
               </span>
             )}
           </div>
