@@ -61,6 +61,7 @@ interface InputProps {
   error?: string;
   className?: string;
   min?: number;
+  max?: number;
   step?: number | string;
   readOnly?: boolean;
   suffix?: string;
@@ -78,6 +79,7 @@ export function Input({
   error,
   className = '',
   min,
+  max,
   step,
   readOnly,
   suffix,
@@ -99,6 +101,7 @@ export function Input({
           required={required}
           readOnly={readOnly}
           min={min}
+          max={max}
           step={step}
           className={`w-full bg-white dark:bg-slate-800 border ${
             error ? 'border-red-400 focus:ring-red-400' : 'border-slate-200 dark:border-slate-600 focus:ring-indigo-500'

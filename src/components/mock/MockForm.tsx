@@ -5,38 +5,31 @@ import { useApp } from '../../context/AppContext';
 import { PREDEFINED_EXAMS, PREDEFINED_TEST_SERIES } from '../../constants/exams';
 import {
   ALL_SECTION_CONFIGS,
-  DEFAULT_SECTION_DATA,
   getSectionsForExamAndStage,
   isRRBExam,
   isSSCExam,
 } from '../../constants/sections';
+import { getSectionPattern } from '../../constants/examPatterns';
 import { MockWithId, MockSections, TestType, ExamStage } from '../../types/mock';
 import {
   calculateMockNumber,
   calculateOverall,
-  calculateUnanswered,
 } from '../../utils/calculations';
 import { validateMockForm } from '../../utils/validation';
-import { formatTime, parseTimeInput, toISODate } from '../../utils/formatters';
+import { formatTime, parseTimeInput } from '../../utils/formatters';
 import { Button } from '../ui/Button';
 import { Input, Select } from '../ui/FormControls';
 import { format } from 'date-fns';
 
 interface SectionInput {
-  questions: string;
   attempted: string;
   correct: string;
-  wrong: string;
-  marks: string;
   time: string; // MM:SS
 }
 
 const emptySectionInput = (): SectionInput => ({
-  questions: '',
   attempted: '',
   correct: '',
-  wrong: '',
-  marks: '',
   time: '',
 });
 
@@ -107,11 +100,8 @@ export function MockForm({ existingMock }: MockFormProps) {
       if (existingMock?.sections[key]) {
         const s = existingMock.sections[key];
         result[key] = {
-          questions: String(s.questions),
           attempted: String(s.attempted),
           correct: String(s.correct),
-          wrong: String(s.wrong),
-          marks: String(s.marks),
           time: formatTime(s.timeSeconds),
         };
       } else {
@@ -123,6 +113,19 @@ export function MockForm({ existingMock }: MockFormProps) {
 
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Reset section inputs when exam or stage changes (only for new mocks, not editing)
+  useEffect(() => {
+    if (!existingMock) {
+      setSections((prev) => {
+        const reset: Record<string, SectionInput> = {};
+        for (const key of Object.keys(prev)) {
+          reset[key] = emptySectionInput();
+        }
+        return reset;
+      });
+    }
+  }, [activeExamName, stage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Exam options
   const examOptions = useMemo(() => {
@@ -169,31 +172,30 @@ export function MockForm({ existingMock }: MockFormProps) {
     const builtSections: MockSections = {};
     for (const { key } of activeSectionConfigs) {
       const s = sections[key] || emptySectionInput();
+      const pattern = getSectionPattern(activeExamName, stage, key);
+      const attempted = parseFloat(s.attempted) || 0;
+      const correct = parseFloat(s.correct) || 0;
+      const wrong = Math.max(0, attempted - correct);
+      const questions = pattern ? pattern.questions : 0;
+      const marks = pattern
+        ? correct * pattern.marksPerCorrect - wrong * pattern.negativeMarks
+        : 0;
       builtSections[key] = {
-        questions: parseFloat(s.questions) || 0,
-        attempted: parseFloat(s.attempted) || 0,
-        correct: parseFloat(s.correct) || 0,
-        wrong: parseFloat(s.wrong) || 0,
-        unanswered: 0,
-        marks: parseFloat(s.marks) || 0,
+        questions,
+        attempted,
+        correct,
+        wrong,
+        unanswered: Math.max(0, questions - attempted),
+        marks: Math.round(marks * 100) / 100,
         timeSeconds: parseTimeInput(s.time),
       };
     }
     return calculateOverall(builtSections);
-  }, [sections, activeSectionConfigs]);
+  }, [sections, activeSectionConfigs, activeExamName, stage]);
 
   const handleSectionChange = (key: string, field: keyof SectionInput, value: string) => {
     setSections((prev) => {
       const updated = { ...prev, [key]: { ...prev[key], [field]: value } };
-      // Auto-calculate wrong if correct or attempted are changed
-      if (field === 'correct' || field === 'attempted') {
-        const sec = updated[key];
-        if (sec.attempted !== '' && sec.correct !== '') {
-          const attempted = parseFloat(sec.attempted) || 0;
-          const correct = parseFloat(sec.correct) || 0;
-          updated[key] = { ...sec, wrong: String(Math.max(0, attempted - correct)) };
-        }
-      }
       return updated;
     });
   };
@@ -231,18 +233,26 @@ export function MockForm({ existingMock }: MockFormProps) {
     const finalExam = showCustomExam ? customExamInput.trim() : exam;
     const finalSeries = showCustomSeries ? customSeriesInput.trim() : testSeries;
 
-    // Build sections data
+    // Build sections data using exam patterns
     const builtSections: MockSections = {};
     const sectionLabels: Record<string, string> = {};
     for (const { key, label } of activeSectionConfigs) {
       const s = sections[key] || emptySectionInput();
+      const pattern = getSectionPattern(finalExam, stage, key);
+      const attempted = parseFloat(s.attempted) || 0;
+      const correct = parseFloat(s.correct) || 0;
+      const wrong = Math.max(0, attempted - correct);
+      const questions = pattern ? pattern.questions : 0;
+      const marks = pattern
+        ? Math.round((correct * pattern.marksPerCorrect - wrong * pattern.negativeMarks) * 100) / 100
+        : 0;
       builtSections[key] = {
-        questions: parseFloat(s.questions) || 0,
-        attempted: parseFloat(s.attempted) || 0,
-        correct: parseFloat(s.correct) || 0,
-        wrong: parseFloat(s.wrong) || 0,
-        unanswered: calculateUnanswered(parseFloat(s.questions) || 0, parseFloat(s.attempted) || 0),
-        marks: parseFloat(s.marks) || 0,
+        questions,
+        attempted,
+        correct,
+        wrong,
+        unanswered: Math.max(0, questions - attempted),
+        marks,
         timeSeconds: parseTimeInput(s.time),
       };
       sectionLabels[key] = label;
@@ -473,79 +483,97 @@ export function MockForm({ existingMock }: MockFormProps) {
           </div>
         </div>
 
-        {activeSectionConfigs.map(({ key, label, color }) => (
-        <div
-          key={key}
-          className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</h3>
-          </div>
+        {activeSectionConfigs.map(({ key, label, color }) => {
+          const pattern = getSectionPattern(activeExamName, stage, key);
+          const sec = sections[key];
+          const attempted = parseFloat(sec?.attempted) || 0;
+          const correct = parseFloat(sec?.correct) || 0;
+          const wrong = Math.max(0, attempted - correct);
+          const unanswered = pattern ? Math.max(0, pattern.questions - attempted) : 0;
+          const marks = pattern
+            ? Math.round((correct * pattern.marksPerCorrect - wrong * pattern.negativeMarks) * 100) / 100
+            : 0;
+          const hasPattern = !!pattern;
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <Input
-              id={`${key}-questions`}
-              label="Questions"
-              type="number"
-              value={sections[key].questions}
-              onChange={(v) => handleSectionChange(key, 'questions', v)}
-              min={0}
-              placeholder="0"
-            />
-            <Input
-              id={`${key}-attempted`}
-              label="Attempted"
-              type="number"
-              value={sections[key].attempted}
-              onChange={(v) => handleSectionChange(key, 'attempted', v)}
-              min={0}
-              placeholder="0"
-            />
-            <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Unanswered</p>
-              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-                {Math.max(0, (parseFloat(sections[key].questions) || 0) - (parseFloat(sections[key].attempted) || 0))}
+          return (
+          <div
+            key={key}
+            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4"
+          >
+            {/* Section header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</h3>
               </div>
+              {hasPattern && (
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                    {pattern.questions}Q
+                  </span>
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                    +{pattern.marksPerCorrect} / −{pattern.negativeMarks}
+                  </span>
+                </div>
+              )}
             </div>
-            <Input
-              id={`${key}-correct`}
-              label="Correct"
-              type="number"
-              value={sections[key].correct}
-              onChange={(v) => handleSectionChange(key, 'correct', v)}
-              min={0}
-              placeholder="0"
-            />
-            <Input
-              id={`${key}-wrong`}
-              label="Wrong"
-              type="number"
-              value={sections[key].wrong}
-              onChange={(v) => handleSectionChange(key, 'wrong', v)}
-              min={0}
-              placeholder="0"
-            />
-            <Input
-              id={`${key}-marks`}
-              label="Marks"
-              type="number"
-              value={sections[key].marks}
-              onChange={(v) => handleSectionChange(key, 'marks', v)}
-              step="0.01"
-              placeholder="0.00"
-            />
-            <Input
-              id={`${key}-time`}
-              label="Time (MM:SS)"
-              value={sections[key].time}
-              onChange={(v) => handleSectionChange(key, 'time', v)}
-              placeholder="20:00"
-              className="col-span-2 sm:col-span-1"
-            />
+
+            {/* User inputs: only Attempted + Correct + Time */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <Input
+                id={`${key}-attempted`}
+                label="Attempted ✏️"
+                type="number"
+                value={sec?.attempted ?? ''}
+                onChange={(v) => handleSectionChange(key, 'attempted', v)}
+                min={0}
+                max={hasPattern ? pattern.questions : undefined}
+                placeholder="0"
+              />
+              <Input
+                id={`${key}-correct`}
+                label="Correct ✏️"
+                type="number"
+                value={sec?.correct ?? ''}
+                onChange={(v) => handleSectionChange(key, 'correct', v)}
+                min={0}
+                placeholder="0"
+              />
+              <Input
+                id={`${key}-time`}
+                label="Time (MM:SS)"
+                value={sec?.time ?? ''}
+                onChange={(v) => handleSectionChange(key, 'time', v)}
+                placeholder={hasPattern ? formatTime(pattern.timeSeconds) : '20:00'}
+              />
+            </div>
+
+            {/* Auto-calculated read-only stats */}
+            {hasPattern && (
+              <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <div className="text-center">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Total Q</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{pattern.questions}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Wrong</p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">{attempted > 0 ? wrong : '—'}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Unanswered</p>
+                  <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{attempted > 0 ? unanswered : '—'}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Score</p>
+                  <p className={`text-sm font-bold ${marks >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {attempted > 0 ? marks.toFixed(2) : '—'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+          );
+        })}
       </div>
 
       {/* Live Summary */}
